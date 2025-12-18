@@ -181,36 +181,45 @@
             </IconBase>
         );
 
-        // プリセットレシピ
+        // プリセットレシピ (MgとCaに分割)
+        // GHは基本的に Mg + Ca として扱われるが、プリセットではバランスを定義
         const PRESETS = [
-            { name: "Standard", gh: 68, kh: 40, desc: "SCA推奨の標準的なバランス" },
-            { name: "Barista Hustle", gh: 80, kh: 40, desc: "バリスタハッスル基準" },
-            { name: "Melbourne", gh: 24, kh: 11, desc: "メルボルンの水質再現" },
+            { name: "Barista Hustle", mg: 80, ca: 0, kh: 40, desc: "BH標準 (Mgのみ)" },
+            { name: "Melbourne", mg: 24, ca: 0, kh: 11, desc: "メルボルンの水質 (軟水バランス)" },
         ];
 
         const App = () => {
             const [totalVolume, setTotalVolume] = useState(1000); 
-            const [targetGH, setTargetGH] = useState(68); 
+            const [targetMg, setTargetMg] = useState(68); // 旧GHスライダー
+            const [targetCa, setTargetCa] = useState(0);  // 新設
             const [targetKH, setTargetKH] = useState(40); 
             const [showGuide, setShowGuide] = useState(false);
 
+            // 計算ロジック
+            // 原液1gを1Lに溶かすと各成分が1ppm上昇する設計
             const calculateRecipe = () => {
                 const volumeL = totalVolume / 1000;
-                const ghSolutionNeeded = targetGH * volumeL;
+                
+                const mgSolutionNeeded = targetMg * volumeL;
+                const caSolutionNeeded = targetCa * volumeL;
                 const khSolutionNeeded = targetKH * volumeL;
-                const distilledWaterNeeded = totalVolume - ghSolutionNeeded - khSolutionNeeded;
+                
+                const distilledWaterNeeded = totalVolume - mgSolutionNeeded - caSolutionNeeded - khSolutionNeeded;
 
                 return {
-                    gh: parseFloat(ghSolutionNeeded.toFixed(1)),
+                    mg: parseFloat(mgSolutionNeeded.toFixed(1)),
+                    ca: parseFloat(caSolutionNeeded.toFixed(1)),
                     kh: parseFloat(khSolutionNeeded.toFixed(1)),
                     water: parseFloat(distilledWaterNeeded.toFixed(1))
                 };
             };
 
             const result = calculateRecipe();
+            const totalGH = targetMg + targetCa;
 
             const applyPreset = (preset) => {
-                setTargetGH(preset.gh);
+                setTargetMg(preset.mg);
+                setTargetCa(preset.ca);
                 setTargetKH(preset.kh);
             };
 
@@ -223,7 +232,7 @@
                                 <div className="bg-stone-800 text-stone-50 p-1.5 md:p-2 rounded-lg shadow-sm">
                                     <Droplet size={18} className="md:w-6 md:h-6" />
                                 </div>
-                                <h1 className="text-base md:text-lg font-bold text-stone-800 tracking-tight leading-none">Custom Water Calc <span className="hidden xs:inline">Calc</span></h1>
+                                <h1 className="text-base md:text-lg font-bold text-stone-800 tracking-tight leading-none">Custom Water Calc</h1>
                             </div>
                             <button 
                                 onClick={() => setShowGuide(!showGuide)}
@@ -237,22 +246,22 @@
 
                     <main className="flex-grow max-w-4xl mx-auto w-full px-4 md:px-6 py-6 md:py-8 space-y-8 md:space-y-10">
                         
-                        {/* Intro - モバイルではコンパクトに */}
+                        {/* Intro */}
                         <div className="text-center space-y-1.5 py-1">
-                            <h2 className="text-xl md:text-3xl font-bold text-stone-800 tracking-tight">There’s no turning back now. Welcome!</h2>
+                            <h2 className="text-xl md:text-3xl font-bold text-stone-800 tracking-tight">Anything for coffee.</h2>
                             <p className="text-stone-500 text-xs md:text-base max-w-lg mx-auto leading-relaxed px-4">
-                                目標の硬度(GH)とアルカリ度(KH)に合わせて、精製水に添加する原液の量を計算します。
+                                硬度GH(Mg/Ca)とアルカリ度KHを調整し、カスタムウォーターを作成。
                             </p>
                         </div>
 
-                        {/* Presets - モバイルでのタップ領域を考慮 */}
+                        {/* Presets */}
                         <section>
                             <div className="flex items-center justify-center mb-3 md:mb-4">
                                 <span className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-bold">Presets</span>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 md:gap-4 max-w-2xl mx-auto">
+                            <div className="grid grid-cols-2 xs:grid-cols-4 gap-2 md:gap-4 max-w-3xl mx-auto">
                                 {PRESETS.map((preset) => {
-                                    const isActive = targetGH === preset.gh && targetKH === preset.kh;
+                                    const isActive = targetMg === preset.mg && targetCa === preset.ca && targetKH === preset.kh;
                                     return (
                                         <button
                                             key={preset.name}
@@ -268,10 +277,10 @@
                                             <span className={`text-[11px] md:text-sm font-bold mb-1 leading-tight text-center ${isActive ? 'text-stone-800' : 'text-stone-500'}`}>
                                                 {preset.name}
                                             </span>
-                                            <div className="flex gap-1.5 text-[9px] md:text-[10px] opacity-80">
-                                                <span className={isActive ? 'text-teal-700 font-medium' : ''}>G:{preset.gh}</span>
-                                                <span className="opacity-30">|</span>
-                                                <span className={isActive ? 'text-blue-700 font-medium' : ''}>K:{preset.kh}</span>
+                                            <div className="flex gap-1.5 text-[9px] md:text-[10px] opacity-80 flex-wrap justify-center">
+                                                <span className={isActive ? 'text-teal-700 font-medium' : ''}>Mg:{preset.mg}</span>
+                                                <span className={isActive ? 'text-amber-700 font-medium' : ''}>Ca:{preset.ca}</span>
+                                                <span className={isActive ? 'text-amber-700 font-medium' : ''}>KH:{preset.kh}</span>
                                             </div>
                                             {isActive && (
                                                 <div className="absolute -bottom-1 w-1 h-1 bg-stone-800 rounded-full"></div>
@@ -302,7 +311,7 @@
                                     </div>
                                     <div className="relative pt-2 px-1">
                                         <input 
-                                            type="range" min="100" max="5000" step="50"
+                                            type="range" min="100" max="5000" step="10"
                                             value={totalVolume}
                                             onChange={(e) => setTotalVolume(Number(e.target.value))}
                                             className="w-full relative z-10"
@@ -317,33 +326,64 @@
 
                                 <div className="h-px bg-stone-100 w-full"></div>
 
-                                {/* GH Slider */}
+                                {/* Mg Slider */}
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <label className="text-sm font-bold text-stone-700 flex items-center gap-2 mb-1">
                                                 <span className="w-2.5 h-2.5 rounded-full bg-teal-600 shadow-sm"></span>
-                                                目標 GH (総硬度)
+                                                Magnesium (Mg)
                                             </label>
-                                            <p className="text-[10px] md:text-[11px] text-stone-400 pl-5">増加でフレーバー促進 (Mg)</p>
+                                            <p className="text-[10px] md:text-[11px] text-stone-400 pl-5">フルーティーさ、甘さ、酸味の明確化</p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-2xl md:text-3xl font-bold text-stone-800 tabular-nums">{targetGH}</span>
+                                            <span className="text-2xl md:text-3xl font-bold text-teal-800 tabular-nums">{targetMg}</span>
                                             <span className="text-xs text-stone-400 font-medium ml-1">ppm</span>
                                         </div>
                                     </div>
                                     <div className="relative pt-2 px-1">
                                         <input 
                                             type="range" min="0" max="200" step="1"
-                                            value={targetGH}
-                                            onChange={(e) => setTargetGH(Number(e.target.value))}
+                                            value={targetMg}
+                                            onChange={(e) => setTargetMg(Number(e.target.value))}
                                             className="w-full relative z-10"
                                             style={{
-                                                background: `linear-gradient(to right, #0d9488 0%, #0d9488 ${(targetGH/200)*100}%, #e7e5e4 ${(targetGH/200)*100}%, #e7e5e4 100%)`,
+                                                background: `linear-gradient(to right, #0d9488 0%, #0d9488 ${(targetMg/200)*100}%, #e7e5e4 ${(targetMg/200)*100}%, #e7e5e4 100%)`,
                                                 height: '6px',
                                                 borderRadius: '99px',
                                                 appearance: 'none'
                                             }} 
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Calcium Slider (New) */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <label className="text-sm font-bold text-stone-700 flex items-center gap-2 mb-1">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></span>
+                                                Calcium (Ca)
+                                            </label>
+                                            <p className="text-[10px] md:text-[11px] text-stone-400 pl-5">ボディ感、クリーム感、質感の向上</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-2xl md:text-3xl font-bold text-amber-800 tabular-nums">{targetCa}</span>
+                                            <span className="text-xs text-stone-400 font-medium ml-1">ppm</span>
+                                        </div>
+                                    </div>
+                                    <div className="relative pt-2 px-1">
+                                        <input 
+                                            type="range" min="0" max="200" step="1"
+                                            value={targetCa}
+                                            onChange={(e) => setTargetCa(Number(e.target.value))}
+                                            className="w-full relative z-10"
+                                            style={{
+                                                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${(targetCa/200)*100}%, #e7e5e4 ${(targetCa/200)*100}%, #e7e5e4 100%)`,
+                                                height: '6px',
+                                                borderRadius: '99px',
+                                                appearance: 'none'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -354,12 +394,12 @@
                                         <div>
                                             <label className="text-sm font-bold text-stone-700 flex items-center gap-2 mb-1">
                                                 <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm"></span>
-                                                目標 KH (アルカリ度)
+                                                Alkalinity (KH)
                                             </label>
-                                            <p className="text-[10px] md:text-[11px] text-stone-400 pl-5">増加で酸を穏やかに (Buffer)</p>
+                                            <p className="text-[10px] md:text-[11px] text-stone-400 pl-5">酸味の緩和、バッファー効果 (Buffer)</p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-2xl md:text-3xl font-bold text-stone-800 tabular-nums">{targetKH}</span>
+                                            <span className="text-2xl md:text-3xl font-bold text-blue-800 tabular-nums">{targetKH}</span>
                                             <span className="text-xs text-stone-400 font-medium ml-1">ppm</span>
                                         </div>
                                     </div>
@@ -382,7 +422,7 @@
 
                             {/* Result Section */}
                             <section className="lg:col-span-5 space-y-6">
-                                {/* Result Card - スマホでも見やすいカード */}
+                                {/* Result Card */}
                                 <div className="bg-[#4a4036] text-stone-50 rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden border border-[#5c5044]">
                                     
                                     {/* 背景装飾 */}
@@ -396,19 +436,36 @@
                                             Recipe
                                         </h3>
                                         
-                                        <div className="space-y-6 md:space-y-8">
-                                            {/* GH Result */}
+                                        <div className="space-y-4 md:space-y-6">
+                                            {/* Mg Result */}
                                             <div className="flex items-center justify-between group bg-white/5 rounded-xl p-3 md:bg-transparent md:p-0 border border-white/5 md:border-none">
                                                 <div className="mb-0.5">
                                                     <p className="text-xs text-[#d6d3d1] font-medium tracking-wide mb-0.5 flex items-center gap-2">
                                                         <span className="w-2 h-2 rounded-full bg-teal-500 md:hidden"></span>
-                                                        GH Solution
+                                                        Mg Solution
                                                     </p>
-                                                    <p className="text-[10px] text-[#a8a29e] hidden md:block">硬度成分 (Mg)</p>
+                                                    <p className="text-[10px] text-[#a8a29e] hidden md:block">硬度成分 (Magnesium)</p>
                                                 </div>
                                                 <div className="flex items-baseline gap-1">
                                                     <span className="text-3xl md:text-4xl font-bold text-[#f5f5f4] tabular-nums tracking-tight group-hover:text-teal-200 transition-colors duration-300">
-                                                        {result.gh}
+                                                        {result.mg}
+                                                    </span>
+                                                    <span className="text-xs md:text-sm text-[#a8a29e]">g</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Ca Result */}
+                                            <div className="flex items-center justify-between group bg-white/5 rounded-xl p-3 md:bg-transparent md:p-0 border border-white/5 md:border-none">
+                                                <div className="mb-0.5">
+                                                    <p className="text-xs text-[#d6d3d1] font-medium tracking-wide mb-0.5 flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-amber-500 md:hidden"></span>
+                                                        Ca Solution
+                                                    </p>
+                                                    <p className="text-[10px] text-[#a8a29e] hidden md:block">硬度成分 (Calcium)</p>
+                                                </div>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className="text-3xl md:text-4xl font-bold text-[#f5f5f4] tabular-nums tracking-tight group-hover:text-amber-200 transition-colors duration-300">
+                                                        {result.ca}
                                                     </span>
                                                     <span className="text-xs md:text-sm text-[#a8a29e]">g</span>
                                                 </div>
@@ -421,7 +478,7 @@
                                                         <span className="w-2 h-2 rounded-full bg-slate-500 md:hidden"></span>
                                                         KH Solution
                                                     </p>
-                                                    <p className="text-[10px] text-[#a8a29e] hidden md:block">緩衝成分 (HCO3)</p>
+                                                    <p className="text-[10px] text-[#a8a29e] hidden md:block">緩衝成分 (Buffer)</p>
                                                 </div>
                                                 <div className="flex items-baseline gap-1">
                                                     <span className="text-3xl md:text-4xl font-bold text-[#f5f5f4] tabular-nums tracking-tight group-hover:text-blue-200 transition-colors duration-300">
@@ -451,7 +508,7 @@
                                         
                                         <div className="mt-6 md:mt-8 pt-4 border-t border-white/5 text-center flex justify-between items-center text-[10px] text-[#a8a29e]">
                                             <span>TARGET: {totalVolume}g</span>
-                                            <span>GH{targetGH} / KH{targetKH}</span>
+                                            <span>Total GH:{totalGH} / KH:{targetKH}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -464,23 +521,27 @@
                                     </h4>
                                     <div className="relative pl-2">
                                         {/* 縦線 */}
-                                        <div className="absolute left-[7px] top-2 bottom-2 w-px bg-stone-100"></div>
+                                        <div className="absolute left-[15px] top-2 bottom-2 w-px bg-stone-100"></div>
                                         
-                                        <ul className="space-y-5 md:space-y-6 relative">
+                                        <ul className="space-y-4 md:space-y-6 relative">
                                             <li className="flex gap-4 items-start text-xs md:text-sm text-stone-600">
                                                 <span className="shrink-0 w-4 h-4 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center text-[8px] font-bold text-stone-500 relative z-10 mt-0.5">1</span>
-                                                <span>ケトルをスケールに乗せスイッチオン</span>
+                                                <span>ケトルをスケールに乗せ計測開始</span>
                                             </li>
                                             <li className="flex gap-4 items-start text-xs md:text-sm text-stone-600">
                                                 <span className="shrink-0 w-4 h-4 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-[8px] font-bold text-teal-600 relative z-10 mt-0.5">2</span>
-                                                <span>GH原液 <span className="font-bold text-stone-800 bg-teal-50 px-1 rounded">{result.gh}g</span> を加える。</span>
+                                                <span>Mg原液 <span className="font-bold text-stone-800 bg-teal-50 px-1 rounded">{result.mg}g</span> を加える。</span>
                                             </li>
                                             <li className="flex gap-4 items-start text-xs md:text-sm text-stone-600">
-                                                <span className="shrink-0 w-4 h-4 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[8px] font-bold text-blue-600 relative z-10 mt-0.5">3</span>
+                                                <span className="shrink-0 w-4 h-4 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-[8px] font-bold text-amber-600 relative z-10 mt-0.5">3</span>
+                                                <span>Ca原液 <span className="font-bold text-stone-800 bg-amber-50 px-1 rounded">{result.ca}g</span> を加える。</span>
+                                            </li>
+                                            <li className="flex gap-4 items-start text-xs md:text-sm text-stone-600">
+                                                <span className="shrink-0 w-4 h-4 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[8px] font-bold text-blue-600 relative z-10 mt-0.5">4</span>
                                                 <span>KH原液 <span className="font-bold text-stone-800 bg-blue-50 px-1 rounded">{result.kh}g</span> を加える。</span>
                                             </li>
                                             <li className="flex gap-4 items-start text-xs md:text-sm text-stone-600">
-                                                <span className="shrink-0 w-4 h-4 rounded-full bg-stone-800 border border-stone-800 flex items-center justify-center text-[8px] font-bold text-white relative z-10 mt-0.5">4</span>
+                                                <span className="shrink-0 w-4 h-4 rounded-full bg-stone-800 border border-stone-800 flex items-center justify-center text-[8px] font-bold text-white relative z-10 mt-0.5">5</span>
                                                 <span>総量 <span className="font-bold text-stone-800 border-b border-stone-300">{totalVolume}g</span> まで精製水を注ぐ。</span>
                                             </li>
                                         </ul>
@@ -489,7 +550,7 @@
                             </section>
                         </div>
 
-                        {/* Guide Modal - スマホでもスクロールしやすく */}
+                        {/* Guide Modal */}
                         {showGuide && (
                             <div 
                                 className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300" 
@@ -508,14 +569,14 @@
                                     
                                     <div className="p-5 md:p-8 overflow-y-auto custom-scrollbar space-y-6 md:space-y-8">
                                         <p className="text-xs md:text-sm text-stone-500 leading-relaxed">
-                                            本サイトは <strong className="text-stone-700">Barista Hustle様</strong> 方式の計算を採用しています。以下の濃度で原液を作成し、ボトルに常備してください。GH、KHのスライダーは現在小数点には対応しておりませんので、必要であれば言って下さい。
+                                            各成分の原液（濃縮液）を予め作成し、ボトルに常備してください。これらを精製水で希釈して使用します。本サイトでは<strong className="text-stone-700">Barista Hustle</strong>様の情報を基に計算を行っております。感謝申し上げます。
                                         </p>
 
-                                        {/* GH Card */}
+                                        {/* Mg Card */}
                                         <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-teal-100 bg-teal-50/30 p-4 md:p-6">
                                             <div className="flex items-center gap-3 mb-3 md:mb-4">
-                                                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 text-teal-700 font-bold text-xs">GH</span>
-                                                <h4 className="font-bold text-sm md:text-base text-stone-700">硬度用原液 (Magnesium)</h4>
+                                                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 text-teal-700 font-bold text-xs">Mg</span>
+                                                <h4 className="font-bold text-sm md:text-base text-stone-700">マグネシウム原液 (Mg)</h4>
                                             </div>
                                             <div className="space-y-3 text-xs md:text-sm text-stone-600">
                                                 <div className="flex justify-between border-b border-teal-100/50 pb-2">
@@ -532,11 +593,33 @@
                                             </div>
                                         </div>
 
+                                        {/* Ca Card */}
+                                        <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-amber-100 bg-amber-50/30 p-4 md:p-6">
+                                            <div className="flex items-center gap-3 mb-3 md:mb-4">
+                                                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-700 font-bold text-xs">Ca</span>
+                                                <h4 className="font-bold text-sm md:text-base text-stone-700">カルシウム原液 (Ca)</h4>
+                                            </div>
+                                            <div className="space-y-3 text-xs md:text-sm text-stone-600">
+                                                <div className="flex justify-between border-b border-amber-100/50 pb-2">
+                                                    <span>用意するもの</span>
+                                                    <span className="font-medium text-stone-800">塩化カルシウム(二水和物)</span>
+                                                </div>
+                                                <div className="flex justify-between items-baseline">
+                                                    <span>配合</span>
+                                                    <div className="text-right">
+                                                        <span className="font-bold text-base md:text-lg text-amber-700">1.47g</span>
+                                                        <span className="text-[10px] md:text-xs text-stone-500 block">を1Lの水に溶かす</span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-[10px] text-amber-800/60 mt-2">※ 無水物の場合は1.11gを使用</p>
+                                            </div>
+                                        </div>
+
                                         {/* KH Card */}
                                         <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-blue-100 bg-blue-50/30 p-4 md:p-6">
                                             <div className="flex items-center gap-3 mb-3 md:mb-4">
                                                 <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-200 text-slate-600 font-bold text-xs">KH</span>
-                                                <h4 className="font-bold text-sm md:text-base text-stone-700">緩衝用原液 (Buffer)</h4>
+                                                <h4 className="font-bold text-sm md:text-base text-stone-700">アルカリ度原液 (KH)</h4>
                                             </div>
                                             <div className="space-y-3 text-xs md:text-sm text-stone-600">
                                                 <div className="flex justify-between border-b border-blue-100/50 pb-2">
